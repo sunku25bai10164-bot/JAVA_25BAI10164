@@ -1,0 +1,409 @@
+import java.io.*;
+import java.lang.annotation.*;
+import java.lang.reflect.*;
+import java.sql.*;
+import java.util.*;
+
+// ==========================================
+// MODULE 3: ANNOTATIONS & CUSTOM EXCEPTIONS
+// ==========================================
+@Retention(RetentionPolicy.RUNTIME)
+@Target(ElementType.METHOD)
+@interface Loggable {
+    String value() default "INFO";
+}
+
+class InsufficientFundsException extends Exception {
+    public InsufficientFundsException(String message) {
+        super(message);
+    }
+}
+
+// ==========================================
+// MODULE 2: ENUMS, INTERFACES, ABSTRACT CLASS
+// ==========================================
+enum AccountType {
+    SAVINGS(0.04), CHECKING(0.0), LOAN(0.08);
+
+    private final double interestRate;
+
+    // Enum Constructor
+    AccountType(double interestRate) {
+        this.interestRate = interestRate;
+    }
+
+    public double getInterestRate() {
+        return this.interestRate;
+    }
+}
+
+interface AccountOperations {
+    void deposit(double amount);
+    void withdraw(double amount) throws InsufficientFundsException;
+}
+
+abstract class Account implements AccountOperations {
+    private final int accountNumber; // Module 2: final keyword
+    private String holderName;
+    protected double balance;
+    private AccountType accountType;
+
+    public Account(int accountNumber, String holderName, double balance, AccountType accountType) {
+        this.accountNumber = accountNumber; // Module 2: this keyword
+        this.holderName = holderName;
+        this.balance = balance;
+        this.accountType = accountType;
+    }
+
+    public int getAccountNumber() { return accountNumber; }
+    public String getHolderName() { return holderName; }
+    public double getBalance() { return balance; }
+    public AccountType getAccountType() { return accountType; }
+
+    public abstract void calculateInterest(); // Abstract Method
+}
+
+// Module 2: Inheritance & Overriding
+class SavingsAccount extends Account {
+    public SavingsAccount(int accountNumber, String holderName, double balance) {
+        super(accountNumber, holderName, balance, AccountType.SAVINGS); // Module 2: super keyword
+    }
+
+    @Override
+    @Loggable("DEPOSIT_OPERATION")
+    public synchronized void deposit(double amount) { // Module 3: Synchronization
+        if (amount > 0) {
+            this.balance += amount;
+            System.out.println("Deposited $" + amount + " to Account #" + getAccountNumber());
+        }
+    }
+
+    @Override
+    @Loggable("WITHDRAW_OPERATION")
+    public synchronized void withdraw(double amount) throws InsufficientFundsException {
+        if (amount > this.balance) {
+            throw new InsufficientFundsException("Insufficient funds! Current balance: $" + this.balance);
+        }
+        this.balance -= amount;
+        System.out.println("Withdrew $" + amount + " from Account #" + getAccountNumber());
+    }
+
+    @Override
+    public void calculateInterest() {
+        double interest = balance * getAccountType().getInterestRate();
+        balance += interest;
+        System.out.println("Interest added: $" + interest);
+    }
+}
+
+// ==========================================
+// MODULE 2: SINGLETON & MODULE 5: JDBC
+// ==========================================
+class BankDatabase {
+    private static BankDatabase instance; // Singleton instance
+    private Connection connection;
+
+    private BankDatabase() {}
+
+    public static synchronized BankDatabase getInstance() {
+        if (instance == null) {
+            instance = new BankDatabase();
+        }
+        return instance;
+    }
+
+    public void connect(String driver, String url, String user, String pass) {
+        try {
+            // Module 5: Specifying JDBC driver information externally
+            Class.forName(driver);
+            this.connection = DriverManager.getConnection(url, user, pass);
+            System.out.println("JDBC Database Connection Established.");
+        } catch (ClassNotFoundException | SQLException e) { // Module 3: Catch Multiple Exceptions
+            System.err.println("Database Connection Failed: " + e.getMessage());
+        }
+    }
+
+    public void saveAccountToDB(Account acc) {
+        if (connection == null) return;
+        String query = "INSERT INTO accounts (account_number, holder_name, balance, account_type) VALUES (?, ?, ?, ?) " +
+                       "ON DUPLICATE KEY UPDATE balance = ?";
+        try (PreparedStatement pstmt = connection.prepareStatement(query)) {
+            pstmt.setInt(1, acc.getAccountNumber());
+            pstmt.setString(2, acc.getHolderName());
+            pstmt.setDouble(3, acc.getBalance());
+            pstmt.setString(4, acc.getAccountType().name());
+            pstmt.setDouble(5, acc.getBalance());
+            pstmt.executeUpdate();
+            System.out.println("Account synced with Database.");
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+// ==========================================
+// MODULE 3: MULTITHREADING & RUNNABLE
+// ==========================================
+class AsyncAuditLogger implements Runnable {
+    private final String logMessage;
+
+    public AsyncAuditLogger(String logMessage) {
+        this.logMessage = logMessage;
+    }
+
+    @Override
+    public void run() {
+        try {
+            Thread.sleep(500); // Module 3: Thread Life Cycle & Sleep
+            // Module 4: Character-oriented Stream Writer
+            try (FileWriter fw = new FileWriter("audit_log.txt", true);
+                 BufferedWriter bw = new BufferedWriter(fw)) {
+                bw.write("[THREAD: " + Thread.currentThread().getName() + "] " + logMessage);
+                bw.newLine();
+            }
+        } catch (InterruptedException | IOException e) {
+            System.err.println("Thread Execution Error: " + e.getMessage());
+        }
+    }
+}
+
+// ==========================================
+// MODULE 1, 2, 4: MAIN APPLICATION LOGIC
+// ==========================================
+public class BankManagementSystem {
+    // Module 4: Collections Framework & Stack
+    private static List<Account> accountList = new ArrayList<>();
+    private static Stack<String> transactionUndoStack = new Stack<>();
+
+    public static void main(String[] args) {
+        // Module 5: External JDBC Configuration
+        String driver = "com.mysql.cj.jdbc.Driver";
+        String dbUrl = "jdbc:mysql://localhost:3306/bank_db";
+        String user = "root";
+        String pass = "password";
+
+        BankDatabase.getInstance().connect(driver, dbUrl, user, pass);
+
+        // Module 1: Input and Output via Scanner
+        Scanner scanner = new Scanner(System.in);
+        boolean running = true;
+
+        // Module 4: 2D & Jagged Arrays Demonstration
+        int[][] jaggedLedgerGrid = {
+            {100, 200, 300},        // Day 1 transactions
+            {450, 50},              // Day 2 transactions
+            {1000, 2500, 30, 80}    // Day 3 transactions
+        };
+        processLedgerGrid(jaggedLedgerGrid);
+
+        // Module 1: Flow Control (while loop & switch)
+        while (running) {
+            System.out.println("\n--- BANKING SYSTEM MENU ---");
+            System.out.println("1. Create Savings Account");
+            System.out.println("2. Deposit Funds");
+            System.out.println("3. Withdraw Funds");
+            System.out.println("4. Demonstrate Reflection");
+            System.out.println("5. Export Binary Audit Report (Byte Stream)");
+            System.out.println("6. Exit");
+            System.out.print("Enter choice: ");
+
+            int choice = scanner.nextInt();
+            switch (choice) {
+                case 1:
+                    System.out.print("Enter Account Number: ");
+                    int accNum = scanner.nextInt();
+                    scanner.nextLine(); // clear buffer
+                    System.out.print("Enter Holder Name: ");
+                    String name = scanner.nextLine();
+                    System.out.print("Enter Initial Deposit: ");
+                    double initial = scanner.nextDouble();
+
+                    // Module 2: Anonymous Class implementation
+                    Account newAcc = new SavingsAccount(accNum, name, initial);
+                    accountList.add(newAcc);
+                    BankDatabase.getInstance().saveAccountToDB(newAcc);
+                    System.out.println("Account created successfully!");
+                    break;
+
+                case 2:
+                    System.out.print("Enter Account Number: ");
+                    int depAccNum = scanner.nextInt();
+                    System.out.print("Enter Deposit Amount: ");
+                    double depAmt = scanner.nextDouble();
+
+                    Account depAcc = findAccount(depAccNum);
+                    if (depAcc != null) {
+                        depAcc.deposit(depAmt);
+                        transactionUndoStack.push("Deposit of $" + depAmt + " to #" + depAccNum);
+                        dispatchThread("Deposit action recorded for Account #" + depAccNum);
+                        BankDatabase.getInstance().saveAccountToDB(depAcc);
+                    } else {
+                        System.out.println("Account not found.");
+                    }
+                    break;
+
+                case 3:
+                    System.out.print("Enter Account Number: ");
+                    int wAccNum = scanner.nextInt();
+                    System.out.print("Enter Withdrawal Amount: ");
+                    double wAmt = scanner.nextDouble();
+
+                    Account wAcc = findAccount(wAccNum);
+                    if (wAcc != null) {
+                        // Module 3: Exception Handling (try-catch-finally)
+                        try {
+                            wAcc.withdraw(wAmt);
+                            transactionUndoStack.push("Withdrawal of $" + wAmt + " from #" + wAccNum);
+                            dispatchThread("Withdrawal action recorded for Account #" + wAccNum);
+                            BankDatabase.getInstance().saveAccountToDB(wAcc);
+                        } catch (InsufficientFundsException e) {
+                            System.err.println("EXPIRED TRANSACTION: " + e.getMessage());
+                        } finally {
+                            System.out.println("Withdrawal processing attempt complete.");
+                        }
+                    } else {
+                        System.out.println("Account not found.");
+                    }
+                    break;
+
+                case 4:
+                    // Module 2: Java Reflection API
+                    inspectClassViaReflection(SavingsAccount.class);
+                    break;
+
+                case 5:
+                    // Module 4: Byte-oriented Stream Output
+                    exportBinaryAuditData();
+                    break;
+
+                case 6:
+                    running = false;
+                    System.out.println("Exiting Application...");
+                    break;
+
+                default:
+                    System.out.println("Invalid option. Try again.");
+                    break;
+            }
+        }
+        scanner.close();
+    }
+
+    private static Account findAccount(int accNum) {
+        // Module 1: For-each loop
+        for (Account acc : accountList) {
+            // Module 2: instanceof operator
+            if (acc instanceof SavingsAccount && acc.getAccountNumber() == accNum) {
+                return acc;
+            }
+        }
+        return null;
+    }
+
+    private static void processLedgerGrid(int[][] grid) {
+        System.out.println("\nProcessing Jagged Ledger Grid (1-D & 2-D Arrays):");
+        // Module 1: Nested For Loops
+        for (int i = 0; i < grid.length; i++) {
+            int rowTotal = 0;
+            for (int j = 0; j < grid[i].length; j++) {
+                rowTotal += grid[i][j];
+            }
+            System.out.println("Day " + (i + 1) + " Transaction Sum: $" + rowTotal);
+        }
+    }
+
+    private static void dispatchThread(String logMsg) {
+        // Module 3: Thread Creations & Life Cycle
+        Thread auditThread = new Thread(new AsyncAuditLogger(logMsg));
+        auditThread.start();
+        try {
+            auditThread.join(1000); // Wait up to 1 second
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    private static void inspectClassViaReflection(Class<?> clazz) {
+        System.out.println("\n--- REFLECTION METADATA INSP: " + clazz.getName() + " ---");
+        Method[] methods = clazz.getDeclaredMethods();
+        for (Method method : methods) {
+            System.out.println("Method Found: " + method.getName() + " | Return Type: " + method.getReturnType());
+        }
+    }
+
+    private static void exportBinaryAuditData() {
+        // Module 4: Byte-Oriented Stream (FileOutputStream)
+        try (FileOutputStream fos = new FileOutputStream("binary_report.dat")) {
+            String data = "Audit Report - Total System Accounts: " + accountList.size();
+            fos.write(data.getBytes());
+            System.out.println("Binary report exported successfully to 'binary_report.dat'.");
+        } catch (IOException e) {
+            System.err.println("Byte Stream Error: " + e.getMessage());
+        }
+    }
+}
+
+
+CREATE DATABASE bank_db;
+USE bank_db;
+
+CREATE TABLE accounts (
+    account_number INT PRIMARY KEY,
+    holder_name VARCHAR(100) NOT NULL,
+    balance DOUBLE NOT NULL,
+    account_type VARCHAR(20) NOT NULL
+);
+
+DETAILED OUTPUT:
+
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+PS C:\Users\SUNKU\Downloads\j> javac Main.java
+PS C:\Users\SUNKU\Downloads\j> java Main.java
+Database Connection Failed: com.mysql.cj.jdbc.Driver
+
+Processing Jagged Ledger Grid (1-D & 2-D Arrays):
+Day 1 Transaction Sum: $600
+Day 2 Transaction Sum: $500
+Day 3 Transaction Sum: $3610
+
+--- BANKING SYSTEM MENU ---
+1. Create Savings Account
+2. Deposit Funds
+3. Withdraw Funds
+4. Demonstrate Reflection
+5. Export Binary Audit Report (Byte Stream)
+6. Exit
+Enter choice: 1
+Enter Account Number: 2134
+Enter Holder Name: debjani
+Enter Initial Deposit: 34000
+Account created successfully!
+
+--- BANKING SYSTEM MENU ---
+1. Create Savings Account
+2. Deposit Funds
+3. Withdraw Funds
+4. Demonstrate Reflection
+5. Export Binary Audit Report (Byte Stream)
+6. Exit
+Enter choice: 3
+Enter Account Number: 2134
+Enter Withdrawal Amount: 3000
+Withdrew $3000.0 from Account #2134
+Withdrawal processing attempt complete.
+
+--- BANKING SYSTEM MENU ---
+1. Create Savings Account
+2. Deposit Funds
+3. Withdraw Funds
+4. Demonstrate Reflection
+5. Export Binary Audit Report (Byte Stream)
+6. Exit
+Enter choice: 6
+Exiting Application...
+
+
+
+
