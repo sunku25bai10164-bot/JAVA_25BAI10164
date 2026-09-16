@@ -2,32 +2,23 @@
 
 ## 1. Executive Summary
 The Multi-Threaded Bank Management & Audit System is a comprehensive CLI application engineered in Core Java and JDBC. The project simulates core banking workflows (account management, dynamic interest generation, multi-channel transactional operations, and ledger consolidation) while serving as an end-to-end implementation of the full Core Java to Database Integration curriculum.
-
----
-
-## 2. Topic & Module Architecture Mapping
-
-### Module 1: Java Fundamentals & Control Flow
 - **Variables & Data Types:** Usage of primitive types (`double`, `int`) for monetary computations and reference variables for account entities.
 - **Control Statements:** Selective logic via `switch-case` constructs, sequential validation using `if...else`, and iteration across collections via enhanced `for` loops.
 - **Console I/O:** Interactive input extraction via `java.util.Scanner` and standard error logging.
 
-### Module 2: Object-Oriented Programming (OOP)
 - **Abstraction & Interfaces:** Defined operational contracts using `AccountOperations` interface and `Account` abstract base class.
 - **Inheritance & Polymorphism:** Realized through `SavingsAccount` extending `Account` with overriding `@Override` behavior for deposit/withdrawal protocols.
 - **Advanced Class Types:** Includes Singleton pattern (`BankDatabase`), Enums with state/constructors (`AccountType`), Reflection API (`Class.getDeclaredMethods()`), and keywords (`this`, `super`, `final`, `instanceof`).
 
-### Module 3: Exception Handling & Multithreading
 - **Custom Exception:** Implemented `InsufficientFundsException` to safely catch invalid withdrawal attempts.
 - **Robustness:** Complete `try...catch...finally` block architecture preventing thread termination on runtime failures.
 - **Multithreading & Synchronization:** Asynchronous audit execution using `Runnable` implementations (`AsyncAuditLogger`), combined with `synchronized` thread safety on balance operations.
 
-### Module 4: Collections, Arrays & I/O Streams
+
 - **Data Structures:** Utilized `ArrayList` for dynamic entity storage and `Stack` for handling transactional history tracking.
 - **Arrays:** 1-D and Jagged 2-D array processing for ledger aggregation (`LedgerProcessor`).
 - **File I/O Streams:** Character-oriented streams (`BufferedWriter`/`FileWriter`) for text logging and Byte-oriented streams (`FileOutputStream`) for binary snapshot generation.
 
-### Module 5: Database Applications with JDBC
 - **Driver Initialization:** Dynamic registration of `com.mysql.cj.jdbc.Driver` via `Class.forName()`.
 - **Database Connection:** Connection handling via `DriverManager.getConnection()`.
 - **SQL Execution:** Externalized database properties (`db.properties`) feeding into parameterized `PreparedStatement` executions to ensure SQL injection protection.
